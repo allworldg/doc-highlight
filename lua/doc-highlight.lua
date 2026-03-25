@@ -8,14 +8,27 @@ H.bufnr = vim.api.nvim_get_current_buf()
 H.timer = vim.uv.new_timer()
 H.cancel_fn = nil
 
+
 H.ns_id = vim.api.nvim_create_namespace("allworldg/doc-highlight")
 
 M.setup = function()
   H.timer = vim.uv.new_timer()
   local group = vim.api.nvim_create_augroup("allworldg/doc-highlight", { clear = true })
-  vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI", "BufEnter", "TextChanged", "TextChangedI" }, {
+
+  vim.api.nvim_create_autocmd("LspAttach",{
+    group = group,
+    callback=function (event)
+      if vim.b[event.buf].canHighlight~=nil then return end
+      vim.b[event.buf].canHighlight =  H.check_capability(event.buf,"textDocument/documentHighlight")
+    end
+  })
+
+  vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI", "TextChanged", "TextChangedI" }, {
     group = group,
     callback = function(event)
+      if vim.b[event.buf].canHighlight~=true then
+        return
+      end
       if not vim.tbl_isempty(H.ranges) then
         if event.event == "TextChanged" or event.event == "TextChangedI" or H.bufnr ~= event.buf or not H.is_in_any_range(H.get_cursor_pos(), H.ranges) then
           H.clearHighlight(H.bufnr)
@@ -29,6 +42,7 @@ M.setup = function()
     end
   })
 end
+
 
 H.update_id = function(id)
   if id == 1e9 then
@@ -116,6 +130,7 @@ H.get_cursor_pos = function()
   -- the pos is (1,0)-indexed
   return { pos[1] - 1, pos[2] }
 end
+
 H.clearHighlight = function(bufnr)
   if vim.api.nvim_buf_is_valid(bufnr) then
     vim.api.nvim_buf_clear_namespace(bufnr, H.ns_id, 0, -1)
@@ -123,5 +138,15 @@ H.clearHighlight = function(bufnr)
   H.ranges = {}
   H.current_range = {}
 end
+
+---@param bufnr integer
+---@param capability string
+---@return boolean
+H.check_capability = function(bufnr,capability)
+  local client = vim.lsp.get_clients({bufnr=bufnr,method=capability})
+  return #client ~= 0
+end
+
+
 
 return M
