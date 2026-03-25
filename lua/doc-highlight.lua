@@ -16,36 +16,32 @@ M.setup = function()
   vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI", "BufEnter", "TextChanged", "TextChangedI" }, {
     group = group,
     callback = function(event)
-      local has_highlight = not vim.tbl_isempty(H.ranges)
-      if has_highlight then
-        if event.event == "TextChanged" or event.event == "TextChangedI" or H.bufnr ~= event.buf
-            or not H.is_in_any_range(H.get_cursor_pos(), H.ranges) then
+      if not vim.tbl_isempty(H.ranges) then
+        if event.event == "TextChanged" or event.event == "TextChangedI" or H.bufnr ~= event.buf or not H.is_in_any_range(H.get_cursor_pos(), H.ranges) then
           H.clearHighlight(H.bufnr)
         else
           return
         end
       end
       H.bufnr = event.buf
-      H.get_highlight_refers(event.buf)
-      vim.uv.timer_start(H.timer, 200, 0,
-        vim.schedule_wrap(function()
-          if vim.uv.is_active(H.timer) then
-            vim.uv.timer_stop(H.timer)
-          end
-          H.highlight(event.buf, H.ranges)
-        end)
-      )
+      H.request_id = H.update_id(H.request_id)
+      H.highlight(event.buf, H.request_id)
     end
   })
 end
 
+H.update_id = function(id)
+  if id == 1e9 then
+    id = 0
+  end
+  id = id + 1
+  return id
+end
 
-H.get_highlight_refers = function(bufnr)
+H.highlight = function(bufnr, id)
   if H.cancel_fn ~= nil then
     pcall(H.cancel_fn)
   end
-  local id = H.request_id + 1
-  H.request_id = id
   local winid = vim.api.nvim_get_current_win()
   local params = function(client)
     return vim.lsp.util.make_position_params(winid, client.offset_encoding)
@@ -60,16 +56,20 @@ H.get_highlight_refers = function(bufnr)
       for client_id, resultObj in pairs(results) do
         local result = resultObj["result"]
         if result == nil then return end
+        local ranges = {}
         for _, res in ipairs(result) do
-          table.insert(H.ranges, res)
+          table.insert(ranges, res)
         end
+        H.ranges = ranges
       end
-      H.bufnr = bufnr
+
+      H.apply_highlight(bufnr, H.ranges)
+      -- should render the latest ranges
     end)
   H.cancel_fn = cancel_fn
 end
 
-H.highlight = function(bufnr, ranges)
+H.apply_highlight = function(bufnr, ranges)
   for _, range in ipairs(ranges) do
     vim.api.nvim_buf_set_extmark(bufnr, H.ns_id, range["range"]["start"]["line"],
       range["range"]["start"]["character"],
