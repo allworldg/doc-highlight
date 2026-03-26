@@ -1,1 +1,31 @@
+*Doc-Highlight* enhance Lsp DocumentHighlight
+
+Apache License
+
+------------------------------------------------------------------------------
+                                                                 *doc-highlight*
+Features:
+- DocumentHighlight(illuminate) by lsp, reduce lsp request times and highlight flicker.
+
+- The main process is achieved by these two steps :
+  - send "textDocument/documentHighlight" request to lsp, get the highlight ranges
+  - use vim.api.nvim_buf_set_extmark to highlight these ranges
+
+What it doesn't do:
+- cannot highlight by using regex or Tree-sitter, only support Lsp
+
+# Setup ~
+
+This module needs a setup with `require('doc-highlight').setup()`.
+Use `vim.api.nvim_set_hl(0,'DocHighlight',{bg=xxx,fg=xxx})` to set highlight color
+
+------------------------------------------------------------------------------
+                                                                     *M.setup()*
+                                  `M.setup`()
+Module setup
+Usage ~
+>lua
+require("doc-highlight").setup()
+<
+------------------------------------------------------------------------------
  vim:tw=78:ts=8:noet:ft=help:norl:
