@@ -23,6 +23,7 @@ Use `vim.api.nvim_set_hl(0,'DocHighlight',{bg=xxx,fg=xxx})` to set highlight col
                                                                      *M.setup()*
                                   `M.setup`()
 Module setup
+
 Usage ~
 >lua
 require("doc-highlight").setup()
